@@ -4,20 +4,37 @@
 
 //Kobuki structure
 typedef struct {
-uint8_t cliff;
-uint8_t bumper;
-uint8_t wheeldrop;
-uint8_t button; } Kobuki_Typedef;
+    uint8_t  cliff;
+    uint8_t  bumper;
+    uint8_t  wheeldrop;
+    uint8_t  button;
+    uint16_t distance;
+    int16_t  angle;
+    uint8_t  rotation_complete;
+    uint8_t  distance_complete;
+} Kobuki_Typedef;
 
-# define SIZE_FEEDBACK 14
+typedef enum { OFF, RED, GREEN, YELLOW } Kobuki_LED_Enum;
+
+// Define buffer for feedback, increase from 14 to 26
+// for distance and angle feedback from Kobuki
+# define SIZE_FEEDBACK 26
+
 // Buffer defintions for payload
-# define BUMPER 4
-# define WHEEL_DROP 5
-# define CLIFF 6
-# define BUTTON 13
+# define BUMPER      4
+# define WHEEL_DROP  5
+# define CLIFF       6
+# define DIST_LSB    7  // only needs 1 wheel
+# define DIST_MSB    8
+# define BUTTON      13
+# define ANGLE_LSB   24 // only needs 1 wheel
+# define ANGLE_MSB   25
 
-// Truncate speed
-#define SPEED_LIMIT (int16_t)150 //mm/s
+// Truncated speed
+#define SPEED_LIMIT  (int16_t)150    // mm/s
+#define SEARCH_SPEED ((int16_t)75)   // mm/s
+#define STOP         ((int16_t)0)    // mm/s
+#define MIN_SPEED    ((int16_t)50)   // mm/s
 
 // Receive payload
 uint8_t Kobuki_Rx(uint8_t* feedback, uint32_t size_feedback);
@@ -33,4 +50,15 @@ void Kobuki_Drive(int16_t speed);
 
 // Kobuki rotate CW/CCW (+ve is CCW)
 void Kobuki_Rotate(int16_t speed);
+
+// Rotate a set angle (P controller)
+void Kobuki_Rotate_Angle_Setpoint(int16_t current_angle_tick, int16_t rot_angle_deg);
+void Kobuki_Rotate_Angle(int16_t current_angle_tick);
+
+// Drive a set distance (P controller)
+void Kobuki_Drive_Distance_Setpoint(uint16_t current_distance_tick, int16_t distance);
+void Kobuki_Drive_Distance(uint16_t current_distance_tick);
+
+// kobuki update LEDs
+void Kobuki_Update_LEDs(Kobuki_LED_Enum led_1_colour, Kobuki_LED_Enum led_2_colour);
 #endif
