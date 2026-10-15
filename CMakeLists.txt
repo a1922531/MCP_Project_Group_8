@@ -13,12 +13,12 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/target.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gcc-arm-none-eabi.cmake)
 
 # Project definition
-project(MCP_Practical_4_Setup)
+project(MCP_Project_Group_8)
 
 # Enable CMake support for ASM and C/CPP languages
 enable_language(C ASM)
 
-set(PROJECT_NAME MCP_Practical_4_Setup)
+set(PROJECT_NAME MCP_Project_Group_8)
 
 # Create an executable object type
 add_executable(${PROJECT_NAME})

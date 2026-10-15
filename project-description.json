@@ -1,10 +1,10 @@
 {
-  "name": "MCP_Practical_4_Setup",
+  "name": "MCP_Project_Group_8",
   "configurations": [
     {
       "name": "Debug",
       "type": "Executable",
-      "output_filename": "MCP_Practical_4_Setup",
+      "output_filename": "MCP_Project_Group_8",
       "mcu": "STM32G474RET6",
       "board": "NUCLEO-G474RE",
       "toolchain_type": "GCC",
@@ -98,7 +98,7 @@
           "type": "c_linker",
           "flags": [
             "-Tstm32g474xe_flash.ld",
-            "-Wl,-Map=MCP_Practical_4_Setup.map",
+            "-Wl,-Map=MCP_Project_Group_8.map",
             "-u",
             "_printf_float",
             "--specs=nosys.specs",
@@ -117,7 +117,7 @@
     {
       "name": "Release",
       "type": "Executable",
-      "output_filename": "MCP_Practical_4_Setup",
+      "output_filename": "MCP_Project_Group_8",
       "mcu": "STM32G474RET6",
       "board": "NUCLEO-G474RE",
       "toolchain_type": "GCC",
@@ -202,7 +202,7 @@
           "type": "c_linker",
           "flags": [
             "-Tstm32g474xe_flash.ld",
-            "-Wl,-Map=MCP_Practical_4_Setup.map",
+            "-Wl,-Map=MCP_Project_Group_8.map",
             "-u",
             "_printf_float",
             "--specs=nosys.specs",
