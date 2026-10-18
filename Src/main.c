@@ -23,7 +23,9 @@ typedef enum { IDLE, SEARCH, ORIENT, PATHFIND, STORAGE, DEPOSIT } Main_State_Enu
 // Result of the ORIENT state: success -> PATHFIND, fail -> back to SEARCH
 typedef enum { ORIENT_PENDING, ORIENT_SUCCESS, ORIENT_FAIL } Orient_Result_Enum;
 
-static Main_State_Enum state = IDLE;
+// The course that Search detects
+typedef enum { UNKNOWN, A, B } Current_Course;
+
 
 // Main FSM transition flags, set by each state's sub-FSM when it finishes.
 // B0, B1 and wheeldrop are read directly from the kobuki struct, not stored here.
@@ -31,7 +33,10 @@ static bool search_done        = false;
 static bool pathfind_complete  = false;
 static bool storage_complete   = false;
 static bool deposit_complete   = false;
+
+static Main_State_Enum state = IDLE;
 static Orient_Result_Enum orient_success = ORIENT_PENDING;
+static Current_Course course = UNKNOWN;
 
 // Search Sub FSM
 void sub_FSM_Search(void){
@@ -47,7 +52,7 @@ void sub_FSM_Pathfind(void){
 }
 
 void sub_FSM_Storage(void){
-  // tbd
+  
 }
 
 void sub_FSM_Deposit(void){
