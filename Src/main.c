@@ -39,23 +39,61 @@ static Orient_Result_Enum orient_success = ORIENT_PENDING;
 static Current_Course course = UNKNOWN;
 
 // Search Sub FSM
-void sub_FSM_Search(void){
+void sub_FSM_Search(Kobuki_Typedef kobuki){
   // tbd
 }
 
-void sub_FSM_Orient(void){
+void sub_FSM_Orient(Kobuki_Typedef kobuki){
   // tbd, please use orient_success and Orient_Result_Enum
 }
 
-void sub_FSM_Pathfind(void){
+void sub_FSM_Pathfind(Kobuki_Typedef kobuki){
   // tbd
 }
 
-void sub_FSM_Storage(void){
-  
+typedef enum { STORAGE_ROTATE_SET, STORAGE_ROTATE, STORAGE_DRIVE_SET, STORAGE_DRIVE } Storage_Step_Enum;
+static Storage_Step_Enum storage_step = STORAGE_ROTATE_SET;
+
+void sub_FSM_Storage(Kobuki_Typedef kobuki){
+  switch (storage_step) {
+    case STORAGE_ROTATE_SET:
+      if (course == A) {
+        Kobuki_Rotate_Angle_Setpoint(kobuki.angle, 135);   // CCW rotation
+      } else if (course == B) {
+        Kobuki_Rotate_Angle_Setpoint(kobuki.angle, -135);  // CW rotation
+      } else {
+        return;                         // course unknown, don't move
+      }
+      storage_step = STORAGE_ROTATE;
+      break;
+
+    case STORAGE_ROTATE:
+      if (kobuki.rotation_complete) {
+        Kobuki_Drive(STOP);
+        storage_step = STORAGE_DRIVE_SET;
+      } else {
+        Kobuki_Rotate_Angle(kobuki.angle);   // Rotates every cycle until done
+      }
+      break;
+
+    case STORAGE_DRIVE_SET:
+      Kobuki_Drive_Distance_Setpoint(kobuki.distance, 900);
+      storage_step = STORAGE_DRIVE;
+      break;
+
+    case STORAGE_DRIVE:
+      if (kobuki.distance_complete) {
+        Kobuki_Drive(STOP);
+        storage_step = STORAGE_ROTATE_SET;  // ready for next time
+        storage_complete = true;            // tells Main_FSM to go to DEPOSIT
+      } else {
+        Kobuki_Drive_Distance(kobuki.distance);
+      }
+      break;
+  }
 }
 
-void sub_FSM_Deposit(void){
+void sub_FSM_Deposit(Kobuki_Typedef kobuki){
   // tbd
 }
 
@@ -95,13 +133,13 @@ void Main_FSM(Kobuki_Typedef kobuki) {
         search_done = false;
         state = ORIENT;
       } else {
-        sub_FSM_Search();
+        sub_FSM_Search(kobuki);
       }
       break;
 
     case ORIENT:
       if (orient_success == ORIENT_PENDING) {
-        sub_FSM_Orient();
+        sub_FSM_Orient(kobuki);
       } else {
         state = (orient_success == ORIENT_SUCCESS) ? PATHFIND : SEARCH;
         orient_success = ORIENT_PENDING;
@@ -113,7 +151,7 @@ void Main_FSM(Kobuki_Typedef kobuki) {
         pathfind_complete = false;
         state = STORAGE;
       } else {
-        sub_FSM_Pathfind();
+        sub_FSM_Pathfind(kobuki);
       }
       break;
 
@@ -122,7 +160,7 @@ void Main_FSM(Kobuki_Typedef kobuki) {
         storage_complete = false;
         state = DEPOSIT;
       } else {
-        sub_FSM_Storage();
+        sub_FSM_Storage(kobuki);
       }
       break;
 
@@ -131,7 +169,7 @@ void Main_FSM(Kobuki_Typedef kobuki) {
         Main_FSM_Reset();
         state = IDLE;
       } else {
-        sub_FSM_Deposit();
+        sub_FSM_Deposit(kobuki);
       }
       break;
 
