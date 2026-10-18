@@ -93,6 +93,8 @@ void sub_FSM_Storage(Kobuki_Typedef kobuki){
   }
 }
 
+
+
 void sub_FSM_Deposit(Kobuki_Typedef kobuki){
   // tbd
 }
