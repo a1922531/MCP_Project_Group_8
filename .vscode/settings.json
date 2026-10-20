@@ -1,3 +1,16 @@
 {
-    "cmake.sourceDirectory": "/Users/lukehumphris/Library/CloudStorage/OneDrive-UniversityofAdelaide/2026 Semester 2/ENGEX200 Microcontroller Programming/stm32_workspace/MCP_Project_Group_8/MCP_Practical_4_Setup"
+    "cmake.cmakePath": "cube-cmake",
+    "cmake.configureArgs": [
+        "-DCMAKE_COMMAND=cube-cmake"
+    ],
+    "cmake.preferredGenerators": [
+        "Ninja"
+    ],
+    "stm32cube-ide-clangd.path": "cube",
+    "stm32cube-ide-clangd.arguments": [
+        "starm-clangd",
+        "--query-driver=${env:CUBE_BUNDLE_PATH}/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gcc*",
+        "--query-driver=${env:CUBE_BUNDLE_PATH}/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-g++*"
+    ],
+    "C_Cpp.intelliSenseEngine": "disabled"
 }

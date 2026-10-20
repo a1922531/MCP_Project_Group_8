@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #define STM32G474xx
 #include "adc.h"
@@ -14,7 +15,6 @@
 #define BUTTON_2_ROTATE 0x04U
 
 // Logic
-#define NULL 0
 #define TRUE 1
 
 // Main FSM states (Figure 5)
@@ -22,6 +22,9 @@ typedef enum { IDLE, SEARCH, ORIENT, PATHFIND, STORAGE, DEPOSIT } Main_State_Enu
 
 // The course that Search detects
 typedef enum { UNKNOWN, A, B } Current_Course;
+
+// Result of the ORIENT state: success -> PATHFIND, fail -> back to SEARCH
+typedef enum { ORIENT_PENDING, ORIENT_SUCCESS, ORIENT_FAIL } Orient_Result_Enum;
 
 // Main FSM transition flags, set by each state's sub-FSM when it finishes.
 // B0, B1 and wheeldrop are read directly from the kobuki struct, not stored here.
@@ -183,9 +186,6 @@ void sub_FSM_Search(const Kobuki_Typedef *kobuki, const US_Typedef *object){
     break;
   }
 }
-
-// Result of the ORIENT state: success -> PATHFIND, fail -> back to SEARCH
-typedef enum { ORIENT_PENDING, ORIENT_SUCCESS, ORIENT_FAIL } Orient_Result_Enum;
 
 void sub_FSM_Orient(Kobuki_Typedef kobuki) {
   // tbd, please use orient_success and Orient_Result_Enum
@@ -405,10 +405,6 @@ void Main_FSM(Kobuki_Typedef* kobuki, US_Typedef* object) {
 }
 
 int main(void) {
-  // Both of these only for testing purposes. Not required
-  volatile uint16_t ultrasonic_read;
-  volatile uint16_t adc_read;
-
   Kobuki_Typedef kobuki;
 
   US_Typedef object;
@@ -429,10 +425,6 @@ int main(void) {
     Kobuki_Read(&kobuki);
 
     Ultrasonic_Detect(&object);
-
-    // Both of these only for testing purposes. Not required
-    ultrasonic_read = Ultrasonic_Read();
-    adc_read = ADC_Read(ADC_CHANNEL_1);
 
     Kobuki_Update_LEDs(led_1, led_2);
 
