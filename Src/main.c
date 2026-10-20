@@ -109,7 +109,7 @@ void sub_FSM_Search(const Kobuki_Typedef *kobuki, const US_Typedef *object){
   switch (search_state) {
 
     case SEARCH_INIT: // initialisation state, performs no movement
-      layout = LAYOUT_UNKNOWN;
+      course = UNKNOWN;
       led_1 = YELLOW;
       attempts++;
 
@@ -248,6 +248,7 @@ typedef enum {
   DEPOSIT_DRIVE_SET,    // drive the measured gap minus the stopping distance
   DEPOSIT_DRIVE
 } Deposit_Step_Enum;
+
 static Deposit_Step_Enum deposit_step = DEPOSIT_SCAN_ENTRY;
 static int16_t entry_tick = 0;  // kobuki.angle (0.01 deg) when the marker entered the beam
 static int16_t exit_tick = 0;   // kobuki.angle (0.01 deg) when the marker left the beam
