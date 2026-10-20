@@ -17,6 +17,8 @@
 // Logic
 #define NULL 0
 #define TRUE 1
+#define HORIZONTAL_DISTANCE = 1150 //mm
+#define VERTICAL_DISTANCE = 1350 //mm
 
 // Main FSM states (Figure 5)
 typedef enum { IDLE, SEARCH, ORIENT, PATHFIND, STORAGE, DEPOSIT } Main_State_Enum;
@@ -67,6 +69,15 @@ typedef enum {
 } Search_State_Enum;
 
 static Search_State_Enum search_state = SEARCH_INIT;
+
+typedef enum {
+  PATHFIND_FIRST,
+  PATHFIND_ROTATE,
+  PATHFIND_SECOND,
+  PATHFIND_FAULT
+} Pathfind_State_Enum;
+
+static Pathfind_State_Enum pathfind_state = PATHFIND_FIRST;
 
 // variable definitions for variables used in FSM to keep it clean
 static bool edge_seen = false; // sweep reached bollard
@@ -193,7 +204,63 @@ void sub_FSM_Orient(void){
 }
 
 void sub_FSM_Pathfind(void){
-  // tbd
+  static bool pathfind_command_started = false;
+  static int32_t Path[3];
+    if (LAYOUT_A){
+      Path[0] = HORIZONTAL_DISTANCE; Path[1] = 90; Path[2] = VERTICAL_DISTANCE; //horizontal travel is roughly 1150mm and vertical is roughly 1350mm
+    }
+    else {
+      Path[0] = VERTICAL_DISTANCE; Path[1] = -90; Path[2] = HORIZONTAL_DISTANCE; //layout B
+    }
+    switch (pathfind_state){
+      case PATHFIND_FIRST:
+        if (!pathfind_command_started){
+          Kobuki_Drive_Distance_Setpoint(kobuki->distance, Path[0]);
+          pathfind_command_started = true;
+        }
+
+        Kobuki_Drive_Distance(kobuki->distance);
+
+        if (distance_complete){
+          distance_complete = 0;
+          pathfind_state = PATHFIND_ROTATE;
+          pathfind_command_started = false;
+          }
+        break;
+        
+      case PATHFIND_ROTATE:
+        if (!pathfind_command_started){
+          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, Path[1]);
+          pathfind_command_started = true;
+        }
+        Kobuki_Rotate_Angle(kobuki->angle);
+
+        if (rotation_complete){
+          rotation_complete = 0;
+          pathfind_state = PATHFIND_SECOND;
+          pathfind_command_started = false;
+        }
+        break;
+
+      case PATHFIND_SECOND:
+        if (!pathfind_command_started){
+          Kobuki_Drive_Distance_Setpoint(kobuki->distance, Path[2]);
+          pathfind_command_started = true;
+        }
+        
+        Kobuki_Drive_Distance(kobuki->distance);
+
+        if (distance_complete){
+          distance_complete = 0;
+          pathfind_complete = true;   
+          pathfind_command_started = false;   
+          pathfind_state = PATHFIND_FAULT; //temp state just so theres no random errors/state jumps
+        }
+        break;
+      case PATHFIND_FAULT:
+        //used for course correction if needed
+        break;
+    }
 }
 
 void sub_FSM_Storage(void){
