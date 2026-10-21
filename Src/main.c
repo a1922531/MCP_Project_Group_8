@@ -1,4 +1,4 @@
-#include "Ultrasonic/ultrasonic.h"
+//#include "Ultrasonic/ultrasonic.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -19,10 +19,10 @@
 #define TRUE 1
 
 // Drive Distances and Rotations
-#define HORIZONTAL_DISTANCE = 1150 //mm
-#define VERTICAL_DISTANCE = 1350 //mm
-#define CW = 9000 //Centidegrees 
-#define CCW = -9000
+#define HORIZONTAL_DISTANCE 1150 //mm
+#define VERTICAL_DISTANCE 1350 //mm
+#define CW (-90) 
+#define CCW 90
 
 // Main FSM states (Figure 5)
 typedef enum { IDLE, SEARCH, ORIENT, PATHFIND, STORAGE, DEPOSIT } Main_State_Enum;
@@ -39,6 +39,9 @@ static bool search_done = false;
 static bool pathfind_complete = false;
 static bool storage_complete = false;
 static bool deposit_complete = false;
+
+static bool pathfind_started = false;
+static bool orient_started = false;
 
 static Main_State_Enum state = IDLE;
 static Orient_Result_Enum orient_success = ORIENT_PENDING;
@@ -203,61 +206,56 @@ void sub_FSM_Search(const Kobuki_Typedef *kobuki, const US_Typedef *object){
   }
 }
 
-void sub_FSM_Orient(Kobuki_Typedef kobuki, const US_Typedef *object) {
-  static bool orient_started = false;
-  uint16_t range = object->range_mm;
-  
+void sub_FSM_Orient(Kobuki_Typedef* kobuki, const US_Typedef* object) {
   if (!orient_started){
-    orient_started = true;
+    uint16_t range = object->range_mm;
     if (range >= 375 && range <= 425){
       course = B;
-      Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
-    }
-    elseif (range >= 525 && range <= 575){
-      course = A;
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW);
+    }
+    else if (range >= 525 && range <= 575){
+      course = A;
+      Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
     }
     else{
       orient_success = ORIENT_FAIL;
-      orient_started = false;
+      course = UNKNOWN;
+      return;
     }
+    orient_started = true;
+    return;
   }
-
-  Kobuki_Rotate_Angle(kobuki->angle);
 
   if (kobuki->rotation_complete){
-    kobuki->rotation_complete = 0;
+    Kobuki_Rotate(STOP);
     orient_started = false;
     orient_success = ORIENT_SUCCESS;
+  } else {
+    Kobuki_Rotate_Angle(kobuki->angle);
   }
-/*  elseif (...) { Not needed but included in use ORIENT_FAIL
-    orient_success = ORIENT_FAIL;
-    orient_started = false;
-    }
-*/
 }
 
-void sub_FSM_Pathfind(Kobuki_Typedef kobuki){
-  static bool pathfind_started = false;
-  static int32_t Path[3];
+void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
+  static int16_t Path[3];
   //Could add path_initialised to stop Path[] being initialised every time 
     if (course == A){
-      Path[0] = HORIZONTAL_DISTANCE; Path[1] = CCW; Path[2] = VERTICAL_DISTANCE; //horizontal travel is roughly 1150mm and vertical is roughly 1350mm
+      Path[0] = HORIZONTAL_DISTANCE; Path[1] = CCW; Path[2] = VERTICAL_DISTANCE; 
     }
     else {
-      Path[0] = VERTICAL_DISTANCE; Path[1] = CW; Path[2] = HORIZONTAL_DISTANCE; //layout B
+      Path[0] = VERTICAL_DISTANCE; Path[1] = CW; Path[2] = HORIZONTAL_DISTANCE; 
     }
     switch (pathfind_state){
       case PATHFIND_FIRST:
         if (!pathfind_started){
           Kobuki_Drive_Distance_Setpoint(kobuki->distance, Path[0]);
           pathfind_started = true;
+          break;
         }
 
         Kobuki_Drive_Distance(kobuki->distance);
 
         if (kobuki->distance_complete){
-          kobuki->distance_complete = 0;
+          Kobuki_Drive(STOP);
           pathfind_state = PATHFIND_ROTATE;
           pathfind_started = false;
           }
@@ -267,11 +265,12 @@ void sub_FSM_Pathfind(Kobuki_Typedef kobuki){
         if (!pathfind_started){
           Kobuki_Rotate_Angle_Setpoint(kobuki->angle, Path[1]);
           pathfind_started = true;
+          break;
         }
         Kobuki_Rotate_Angle(kobuki->angle);
 
         if (kobuki->rotation_complete){
-          kobuki->rotation_complete = 0;
+          Kobuki_Rotate(STOP);
           pathfind_state = PATHFIND_SECOND;
           pathfind_started = false;
         }
@@ -281,15 +280,16 @@ void sub_FSM_Pathfind(Kobuki_Typedef kobuki){
         if (!pathfind_started){
           Kobuki_Drive_Distance_Setpoint(kobuki->distance, Path[2]);
           pathfind_started = true;
+          break;
         }
         
         Kobuki_Drive_Distance(kobuki->distance);
 
         if (kobuki->distance_complete){
-          kobuki->distance_complete = 0;
+          Kobuki_Drive(STOP);
           pathfind_complete = true;   
-          pathfindd_started = false;   
-          pathfind_state = PATHFIND_FAULT; //temp state just so theres no random errors/state jumps
+          pathfind_started = false;   
+          pathfind_state = PATHFIND_FIRST; 
         }
         break;
       case PATHFIND_FAULT:
@@ -432,6 +432,12 @@ static void Main_FSM_Reset(void) {
   orient_success = ORIENT_PENDING;
   storage_step = STORAGE_ROTATE_SET;
   deposit_step = DEPOSIT_SCAN_ENTRY;
+  pathfind_started = false;
+  orient_started = false;
+  pathfind_state = PATHFIND_FIRST;
+  attempts = 0;
+  search_state = SEARCH_INIT;
+  search_retry = false;
 }
 
 // Overall FSM (Figure 5)
@@ -466,7 +472,7 @@ void Main_FSM(Kobuki_Typedef* kobuki, US_Typedef* object) {
 
     case ORIENT:
       if (orient_success == ORIENT_PENDING) {
-        sub_FSM_Orient(*kobuki, object);
+        sub_FSM_Orient(kobuki, object);
       } else {
         state = (orient_success == ORIENT_SUCCESS) ? PATHFIND : SEARCH;
         orient_success = ORIENT_PENDING;
@@ -478,7 +484,7 @@ void Main_FSM(Kobuki_Typedef* kobuki, US_Typedef* object) {
         pathfind_complete = false;
         state = STORAGE;
       } else {
-        sub_FSM_Pathfind(*kobuki);
+        sub_FSM_Pathfind(kobuki);
       }
       break;
 
