@@ -17,9 +17,11 @@
 // Logic
 #define TRUE 1
 
-// Drive Distances
+// Drive Distances and Rotations
 #define HORIZONTAL_DISTANCE = 1150 //mm
 #define VERTICAL_DISTANCE = 1350 //mm
+#define CW = 9000 //Centidegrees 
+#define CCW = -9000
 
 // Main FSM states (Figure 5)
 typedef enum { IDLE, SEARCH, ORIENT, PATHFIND, STORAGE, DEPOSIT } Main_State_Enum;
@@ -201,60 +203,83 @@ void sub_FSM_Search(const Kobuki_Typedef *kobuki, const US_Typedef *object){
 }
 
 void sub_FSM_Orient(Kobuki_Typedef kobuki) {
-  // tbd, please use orient_success and Orient_Result_Enum
+  static bool orient_started = false;
+  if (!orient_started){
+    if (course == A){
+      Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
+    }
+    else{
+      Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW);
+    }
+    orient_started = true;
+  }
+
+  Kobuki_Rotate_Angle(kobuki->angle);
+
+  if (kobuki->rotation_complete){
+    kobuki->rotation_complete = 0;
+    orient_started = false;
+    orient_success = ORIENT_SUCCESS;
+  }
+/*  elseif (...) { Not needed but included in use ORIENT_FAIL
+    orient_success = ORIENT_FAIL;
+    orient_started = false;
+    }
+*/
 }
 
 void sub_FSM_Pathfind(Kobuki_Typedef kobuki){
-  static bool pathfind_command_started = false;
+  static bool pathfind_started = false;
   static int32_t Path[3];
+  //Could add path_initialised to stop Path[] being initialised every time 
     if (course == A){
-      Path[0] = HORIZONTAL_DISTANCE; Path[1] = 90; Path[2] = VERTICAL_DISTANCE; //horizontal travel is roughly 1150mm and vertical is roughly 1350mm
+      Path[0] = HORIZONTAL_DISTANCE; Path[1] = CCW; Path[2] = VERTICAL_DISTANCE; //horizontal travel is roughly 1150mm and vertical is roughly 1350mm
     }
     else {
-      Path[0] = VERTICAL_DISTANCE; Path[1] = -90; Path[2] = HORIZONTAL_DISTANCE; //layout B
+      Path[0] = VERTICAL_DISTANCE; Path[1] = CW; Path[2] = HORIZONTAL_DISTANCE; //layout B
     }
     switch (pathfind_state){
       case PATHFIND_FIRST:
-        if (!pathfind_command_started){
+        if (!pathfind_started){
           Kobuki_Drive_Distance_Setpoint(kobuki->distance, Path[0]);
-          pathfind_command_started = true;
+          pathfind_started = true;
         }
 
         Kobuki_Drive_Distance(kobuki->distance);
 
-        if (distance_complete){
-          distance_complete = 0;
+        if (kobuki->distance_complete){
+          kobuki->distance_complete = 0;
           pathfind_state = PATHFIND_ROTATE;
-          pathfind_command_started = false;
+          pathfind_started = false;
           }
         break;
         
       case PATHFIND_ROTATE:
-        if (!pathfind_command_started){
+        if (!pathfind_started){
           Kobuki_Rotate_Angle_Setpoint(kobuki->angle, Path[1]);
-          pathfind_command_started = true;
+          pathfind_started = true;
         }
         Kobuki_Rotate_Angle(kobuki->angle);
 
-        if (rotation_complete){
-          rotation_complete = 0;
+        if (kobuki->rotation_complete){
+          kobuki->rotation_complete = 0;
           pathfind_state = PATHFIND_SECOND;
-          pathfind_command_started = false;
+          pathfind_started = false;
         }
         break;
 
       case PATHFIND_SECOND:
-        if (!pathfind_command_started){
+        if (!pathfind_started){
           Kobuki_Drive_Distance_Setpoint(kobuki->distance, Path[2]);
-          pathfind_command_started = true;
+          pathfind_started = true;
         }
         
         Kobuki_Drive_Distance(kobuki->distance);
 
-        if (distance_complete){
-          distance_complete = 0;
+        if (kobuki->distance_complete){
+          kobuki->distance_complete = 0;
           pathfind_complete = true;   
-          pathfind_command_started = false;   
+          pathfindd_started = false;   
           pathfind_state = PATHFIND_FAULT; //temp state just so theres no random errors/state jumps
         }
         break;
