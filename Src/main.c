@@ -208,6 +208,7 @@ void sub_FSM_Orient(Kobuki_Typedef kobuki, const US_Typedef *object) {
   uint16_t range = object->range_mm;
   
   if (!orient_started){
+    orient_started = true;
     if (range >= 375 && range <= 425){
       course = B;
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
@@ -216,7 +217,10 @@ void sub_FSM_Orient(Kobuki_Typedef kobuki, const US_Typedef *object) {
       course = A;
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW);
     }
-    orient_started = true;
+    else{
+      orient_success = ORIENT_FAIL;
+      orient_started = false;
+    }
   }
 
   Kobuki_Rotate_Angle(kobuki->angle);
@@ -462,7 +466,7 @@ void Main_FSM(Kobuki_Typedef* kobuki, US_Typedef* object) {
 
     case ORIENT:
       if (orient_success == ORIENT_PENDING) {
-        sub_FSM_Orient(*kobuki);
+        sub_FSM_Orient(*kobuki, object);
       } else {
         state = (orient_success == ORIENT_SUCCESS) ? PATHFIND : SEARCH;
         orient_success = ORIENT_PENDING;
