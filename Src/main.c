@@ -1,3 +1,4 @@
+#include "Ultrasonic/ultrasonic.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -202,16 +203,20 @@ void sub_FSM_Search(const Kobuki_Typedef *kobuki, const US_Typedef *object){
   }
 }
 
-void sub_FSM_Orient(Kobuki_Typedef kobuki) {
+void sub_FSM_Orient(Kobuki_Typedef kobuki, const US_Typedef *object) {
   static bool orient_started = false;
+  uint16_t range = object->range_mm;
+  
   if (!orient_started){
-    if (course == A){
+    if (range >= 375 && range <= 425){
+      course = B;
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
     }
-    else{
+    elseif (range >= 525 && range <= 575){
+      course = A
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW);
     }
-    orient_started = true;
+    orient_started = true
   }
 
   Kobuki_Rotate_Angle(kobuki->angle);
