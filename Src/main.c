@@ -213,10 +213,10 @@ void sub_FSM_Orient(Kobuki_Typedef kobuki, const US_Typedef *object) {
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
     }
     elseif (range >= 525 && range <= 575){
-      course = A
+      course = A;
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW);
     }
-    orient_started = true
+    orient_started = true;
   }
 
   Kobuki_Rotate_Angle(kobuki->angle);
