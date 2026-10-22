@@ -197,7 +197,7 @@ void sub_FSM_Search(const Kobuki_Typedef *kobuki, const US_Typedef *object){
     break;
 
     case SEARCH_FAULT:
-    default
+    default:
       // Nothing found: stop and wait for B1
       Kobuki_Rotate(STOP);
       led_2 = RED;
@@ -209,12 +209,12 @@ void sub_FSM_Search(const Kobuki_Typedef *kobuki, const US_Typedef *object){
 void sub_FSM_Orient(Kobuki_Typedef* kobuki, const US_Typedef* object) {
   if (!orient_started){
     //uint16_t range = object->range_mm;
-    if (object->range_mm <= 475){
+    if (object->range_mm <= 550){
       course = B;
       led_1 = YELLOW;
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, Cdeg_To_Deg(wrap_angle(theta_mid + CCW * 100 - kobuki->angle)));
     }
-    else if (object->range_mm <= 700){
+    else if (object->range_mm <= 900){
       course = A;
       led_1 = GREEN;
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, Cdeg_To_Deg(wrap_angle(theta_mid + CW * 100 - kobuki->angle)));
