@@ -341,7 +341,7 @@ void sub_FSM_Storage(Kobuki_Typedef* kobuki) {
 }
 
 #define DEPOSIT_DETECT_MM ((uint16_t)500)  // deposit marker counts as "seen" inside this range
-#define DEPOSIT_STOP_MM   ((uint16_t)100)  // stop this far from the deposit marker
+#define DEPOSIT_STOP_MM   ((uint16_t)125)  // stop this far from the deposit marker
 
 typedef enum {
   DEPOSIT_SCAN_ENTRY,   // rotate CCW until the marker enters the beam
