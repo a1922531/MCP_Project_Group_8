@@ -116,7 +116,8 @@ static bool Edge_Confirmed(bool condition) {
   return (edge_count >= 3);
 }
 
-// Search Sub FSM
+
+// Search Sub FSM - also called by storage and deposit state
 void sub_FSM_Search(const Kobuki_Typedef *kobuki, const US_Typedef *object){
   int32_t angle = kobuki->angle; // store angle
   bool bollard_detected = object->detected; // range < ULTRASONIC_DETECT_RANGE_MM
