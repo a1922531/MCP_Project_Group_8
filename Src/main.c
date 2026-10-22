@@ -24,9 +24,6 @@
 #define CW (-90) 
 #define CCW 90
 
-// initiate LEDs
-  Kobuki_LED_Enum led_1 = OFF, led_2 = OFF;
-
 // Main FSM states (Figure 5)
 typedef enum { IDLE, SEARCH, ORIENT, PATHFIND, STORAGE, DEPOSIT } Main_State_Enum;
 
@@ -431,6 +428,8 @@ void sub_FSM_Deposit(Kobuki_Typedef* kobuki, US_Typedef* object) {
 // Stop the motors and clear every transition flag so the next run starts fresh
 static void Main_FSM_Reset(void) {
   Kobuki_Drive(STOP);
+  led_1 = OFF;
+  led_2 = OFF;
   search_done = false;
   pathfind_complete = false;
   storage_complete = false;
