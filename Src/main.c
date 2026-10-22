@@ -208,18 +208,21 @@ void sub_FSM_Search(const Kobuki_Typedef *kobuki, const US_Typedef *object){
 
 void sub_FSM_Orient(Kobuki_Typedef* kobuki, const US_Typedef* object) {
   if (!orient_started){
-    uint16_t range = object->range_mm;
-    if (range >= 375 && range <= 425){
+    //uint16_t range = object->range_mm;
+    if (object->range_mm <= 475){
       course = B;
-      Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW);
+      led_1 = YELLOW;
+      Kobuki_Rotate_Angle_Setpoint(kobuki->angle, Cdeg_To_Deg(wrap_angle(theta_mid + CCW * 100 - kobuki->angle)));
     }
-    else if (range >= 525 && range <= 575){
+    else if (object->range_mm <= 600){
       course = A;
-      Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
+      led_1 = RED;
+      Kobuki_Rotate_Angle_Setpoint(kobuki->angle, Cdeg_To_Deg(wrap_angle(theta_mid + CW * 100 - kobuki->angle)));
     }
     else{
       orient_success = ORIENT_FAIL;
       course = UNKNOWN;
+      led_2 = RED;
       return;
     }
     orient_started = true;
