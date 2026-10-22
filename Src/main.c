@@ -351,7 +351,6 @@ typedef enum {
   DEPOSIT_SCAN_EXIT,    // keep rotating until the marker leaves the beam
   DEPOSIT_CENTRE_SET,   // turn back by half the sweep to face the marker's centre
   DEPOSIT_CENTRE,
-  DEPOSIT_DRIVE_SET,    // drive the measured gap minus the stopping distance
   DEPOSIT_DRIVE
 } Deposit_Step_Enum;
 
@@ -394,29 +393,19 @@ void sub_FSM_Deposit(Kobuki_Typedef* kobuki, US_Typedef* object) {
     case DEPOSIT_CENTRE:
       if (kobuki->rotation_complete) {
         Kobuki_Drive(STOP);
-        deposit_step = DEPOSIT_DRIVE_SET;
+        deposit_step = DEPOSIT_DRIVE;
       } else {
         Kobuki_Rotate_Angle(kobuki->angle);
       }
       break;
 
-    case DEPOSIT_DRIVE_SET:
-      if (object->range_mm > DEPOSIT_STOP_MM) {
-        Kobuki_Drive_Distance_Setpoint(kobuki->distance, (int16_t)(object->range_mm - DEPOSIT_STOP_MM));
-        deposit_step = DEPOSIT_DRIVE;
-      } else {
-        deposit_step = DEPOSIT_SCAN_ENTRY;  // already close enough
-        deposit_complete = true;
-      }
-      break;
-
     case DEPOSIT_DRIVE:
-      if (kobuki->distance_complete) {
+      if (object->range_mm <= 125) {
         Kobuki_Drive(STOP);
         deposit_step = DEPOSIT_SCAN_ENTRY;  // ready for next time
         deposit_complete = true;            // tells Main_FSM to go to IDLE
       } else {
-        Kobuki_Drive_Distance(kobuki->distance);
+        Kobuki_Drive(MIN_SPEED);
       }
       break;
 
