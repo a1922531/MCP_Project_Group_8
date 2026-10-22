@@ -129,7 +129,7 @@ void sub_FSM_Search(const Kobuki_Typedef *kobuki, const US_Typedef *object){
 
     case SEARCH_INIT: // initialisation state, performs no movement
       course = UNKNOWN;
-      led_1 = YELLOW;
+      led_2 = YELLOW;
       attempts++;
 
       if (attempts > 3) { next_state(SEARCH_FAULT, angle); // give up after 3 tries
@@ -148,7 +148,7 @@ void sub_FSM_Search(const Kobuki_Typedef *kobuki, const US_Typedef *object){
           if (Edge_Confirmed(bollard_detected)) { // detect edge and apply actions
             edge_seen = true;
             edge_count = 0;
-            led_1 = GREEN;
+            led_2 = GREEN;
           }
       } else {
         Kobuki_Rotate(MIN_SPEED); // once edge detected, rotate slower
@@ -200,7 +200,7 @@ void sub_FSM_Search(const Kobuki_Typedef *kobuki, const US_Typedef *object){
     default:
       // Nothing found: stop and wait for B1
       Kobuki_Rotate(STOP);
-      led_1 = RED;
+      led_2 = RED;
       search_state = SEARCH_FAULT;
     break;
   }
@@ -211,12 +211,12 @@ void sub_FSM_Orient(Kobuki_Typedef* kobuki, const US_Typedef* object) {
     //uint16_t range = object->range_mm;
     if (object->range_mm <= 475){
       course = B;
-      led_1 = YELLOW;
+      led_2 = YELLOW;
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, Cdeg_To_Deg(wrap_angle(theta_mid + CCW * 100 - kobuki->angle)));
     }
-    else if (object->range_mm <= 600){
+    else if (object->range_mm <= 700){
       course = A;
-      led_1 = RED;
+      led_2 = GREEN;
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, Cdeg_To_Deg(wrap_angle(theta_mid + CW * 100 - kobuki->angle)));
     }
     else{
