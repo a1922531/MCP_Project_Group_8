@@ -24,6 +24,9 @@
 #define CW (-90) 
 #define CCW 90
 
+// initiate LEDs
+  Kobuki_LED_Enum led_1 = OFF, led_2 = OFF;
+
 // Main FSM states (Figure 5)
 typedef enum { IDLE, SEARCH, ORIENT, PATHFIND, STORAGE, DEPOSIT } Main_State_Enum;
 
@@ -521,17 +524,11 @@ int main(void) {
 
   US_Typedef object;
 
-  Kobuki_LED_Enum led_1, led_2;
-
   UART_Init();
 
   ADC_Init();
 
   Ultrasonic_Init();
-
-  state = IDLE;
-  led_1 = OFF;
-  led_2 = OFF;
 
   while (1) {
     Kobuki_Read(&kobuki);
