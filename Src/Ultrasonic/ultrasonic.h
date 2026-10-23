@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define ULTRASONIC_DETECT_RANGE_MM ((uint16_t)700U)
+#define ULTRASONIC_DETECT_RANGE_MM ((uint16_t)900U)
 #define ULTRASONIC_MAX_RANGE_MM    ((uint16_t)5000U)
 
 typedef struct {
