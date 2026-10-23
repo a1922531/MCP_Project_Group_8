@@ -8,6 +8,8 @@
 #define ADC_MAX_VALUE        4095UL
 #define MB1043_FULL_SCALE_MM 5120UL
 
+uint16_t ultrasonic_detect_range_mm = 900U;
+
 void Ultrasonic_Init(void)
 {
     RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN; // Enable GPIOA clock
@@ -37,6 +39,6 @@ void Ultrasonic_Detect(US_Typedef *object)
     object->range_mm = Ultrasonic_Read();
 
     object->detected =
-        (object->range_mm < ULTRASONIC_DETECT_RANGE_MM)
+        (object->range_mm < ultrasonic_detect_range_mm)
         ? 1U : 0U;
 }

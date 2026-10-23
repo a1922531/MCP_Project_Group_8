@@ -419,9 +419,8 @@ typedef enum {
   STORAGE_ROTATE,
   STORAGE_DRIVE_SET,
   STORAGE_DRIVE
-  STORAGE_BUMPER, 
 } Storage_Step_Enum;
-static Storage_Step_Enum storage_step = STORAGE_DETECT;
+static Storage_Step_Enum storage_step = STORAGE_ROTATE_SET;
 static Status_Enum storage_status = STATUS_PENDING;
 static bool storage_complete = false; // tells Main_FSM to go to DEPOSIT
 
@@ -431,9 +430,9 @@ void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
     if (object->detected) {
       if (object->range_mm <= 900) {
         if (course == A) {
-          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, 135);
-        } else {
           Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -135);
+        } else {
+          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, 135);
         }
         storage_step = STORAGE_ROTATE;
         break;
@@ -452,14 +451,14 @@ void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
 
     break;
   case STORAGE_DRIVE_SET:
-    Kobuki_Drive_Distance_Setpoint(kobuki->distance, 900);
+    Kobuki_Drive_Distance_Setpoint(kobuki->distance, 850);
     storage_step = STORAGE_DRIVE;
     break;
 
   case STORAGE_DRIVE:
     if (kobuki->distance_complete || (object->range_mm < 150)) {
       Kobuki_Drive(STOP);
-      storage_step = STORAGE_DETECT; // ready for next time
+      storage_step = STORAGE_ROTATE_SET; // ready for next time
       storage_complete = true;       // tells Main_FSM to go to DEPOSIT
     } else {
       Kobuki_Drive_Distance(kobuki->distance);
@@ -484,6 +483,7 @@ static bool deposit_complete = false; // tells Main_FSM to go to IDLE
 void sub_FSM_Deposit(Kobuki_Typedef *kobuki, US_Typedef *object) {
   switch (deposit_step) {
   case DEPOSIT_CENTRE: {
+    ultrasonic_detect_range_mm = 550;
     Status_Enum result = sub_FSM_Search(kobuki, object);
     if (result == STATUS_DONE) {
       deposit_step = DEPOSIT_DRIVE;
@@ -496,7 +496,7 @@ void sub_FSM_Deposit(Kobuki_Typedef *kobuki, US_Typedef *object) {
   }
 
   case DEPOSIT_DRIVE:
-    if (object->range_mm <= DEPOSIT_STOP_MM) {
+    if (object->range_mm <= 375) {
       Kobuki_Drive(STOP);
       deposit_step = DEPOSIT_CENTRE; // ready for next time
       deposit_complete = true;       // tells Main_FSM to go to IDLE
@@ -532,7 +532,7 @@ static void Main_FSM_Reset(void) {
   storage_complete = false;
   deposit_complete = false;
   orient_success = STATUS_PENDING;
-  storage_step = STORAGE_DETECT;
+  storage_step = STORAGE_ROTATE_SET;
   storage_status = STATUS_PENDING;
   deposit_step = DEPOSIT_CENTRE;
   deposit_status = STATUS_PENDING;
@@ -546,6 +546,7 @@ static void Main_FSM_Reset(void) {
   corb = 0;
   pathfind_count = 0;
   pathfind_state_prev = PATHFIND_FIRST;
+  ultrasonic_detect_range_mm = 900;
 }
 
 // Overall FSM (Figure 5)
@@ -650,7 +651,7 @@ int main(void) {
 
   US_Typedef object;
 
-  UART_Init();
+   UART_Init();
 
   ADC_Init();
 

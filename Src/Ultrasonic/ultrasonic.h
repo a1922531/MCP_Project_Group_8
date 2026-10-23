@@ -3,8 +3,10 @@
 
 #include <stdint.h>
 
-#define ULTRASONIC_DETECT_RANGE_MM ((uint16_t)900U)
 #define ULTRASONIC_MAX_RANGE_MM    ((uint16_t)5000U)
+
+// Object counts as detected below this range (mm). Defaults to 900, can be changed anywhere at runtime
+extern uint16_t ultrasonic_detect_range_mm;
 
 typedef struct {
     uint8_t  detected;
