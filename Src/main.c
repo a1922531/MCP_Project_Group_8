@@ -376,6 +376,9 @@ void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
         }
       
         if (kobuki->rotation_complete){
+          if (corb == 3){
+            pathfind_count++
+          }
           Kobuki_Rotate(STOP);
           kobuki->rotation_complete = 0;
           pathfind_state = PATHFIND_FIRST;
@@ -542,7 +545,6 @@ void Main_FSM(Kobuki_Typedef* kobuki, US_Typedef* object) {
     }
     else if (kobuki->cliff == 0x02){
       corb = 3;
-      pathfind_count++;
     }
     else{
       corb = 2;
