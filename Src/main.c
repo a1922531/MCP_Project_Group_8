@@ -195,7 +195,7 @@ static bool orient_started = false;
 void sub_FSM_Orient(Kobuki_Typedef* kobuki, const US_Typedef* object) {
   if (!orient_started){
     //uint16_t range = object->range_mm;
-    if (object->range_mm <= 550){
+    if (object->range_mm <= 600){
       course = B;
       led_1 = YELLOW;
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, Cdeg_To_Deg(wrap_angle(theta_mid + CCW * 100 - kobuki->angle)));
