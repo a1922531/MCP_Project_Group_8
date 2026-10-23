@@ -50,7 +50,7 @@ static int16_t Cdeg_To_Deg(int32_t cdeg) {
   return (int16_t)((cdeg >= 0) ? ((cdeg + 50) / 100) : ((cdeg - 50) / 100));
 }
 
-// Search Sub FSM State Definitions
+// Search Sub FSM State
 typedef enum {
   SEARCH_INIT,
   SEARCH_LEFT,
@@ -227,17 +227,27 @@ void sub_FSM_Orient(Kobuki_Typedef* kobuki, const US_Typedef* object) {
 // Drive Distances
 #define HORIZONTAL_DISTANCE 1150 //mm
 #define VERTICAL_DISTANCE 1350 //mm
+#define REVERSE 50 //mm
+#define REVERSE_ANGLE 3 
+#define speed 150
 
 typedef enum {
   PATHFIND_FIRST,
   PATHFIND_ROTATE,
   PATHFIND_SECOND,
+  PATHFIND_REVERSE,
+  PATHFIND_REVERSE_ANGLE,
+  PATHFIND_CENTER
   PATHFIND_FAULT
 } Pathfind_State_Enum;
 
 static Pathfind_State_Enum pathfind_state = PATHFIND_FIRST;
+static Pathfind_State_Enum pathfind_state_prev = PATHFIND_FIRST;
 static bool pathfind_started = false;
 static bool pathfind_complete = false; // tells Main_FSM to go to STORAGE
+static bool reverse_started = false; //Temp variable/ffunctionality 
+static corb = 0; //1 = cliff, 2= bumper, 3 = front cliff
+static pathfind_count = 0;
 
 void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
   static int16_t Path[3];
@@ -250,18 +260,26 @@ void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
     }
     switch (pathfind_state){
       case PATHFIND_FIRST:
+        Kobuki_Drive(speed);
+        if (pathfind_count == 2){
+          pathfind_state = PATHFIND_CENTER
+        }
+      case PATHFIND_CENTER:
+        
+      /*
+      case PATHFIND_FIRST:
         if (!pathfind_started){
           Kobuki_Drive_Distance_Setpoint(kobuki->distance, Path[0]);
           pathfind_started = true;
           break;
         }
-
-        Kobuki_Drive_Distance(kobuki->distance);
-
         if (kobuki->distance_complete){
           Kobuki_Drive(STOP);
           pathfind_state = PATHFIND_ROTATE;
           pathfind_started = false;
+          }
+          else{
+            Kobuki_Drive_Distance(kobuki->distance);
           }
         break;
         
@@ -271,12 +289,15 @@ void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
           pathfind_started = true;
           break;
         }
-        Kobuki_Rotate_Angle(kobuki->angle);
 
         if (kobuki->rotation_complete){
           Kobuki_Rotate(STOP);
           pathfind_state = PATHFIND_SECOND;
           pathfind_started = false;
+          kobuki->rotation_complete = 0;
+        }
+        else{
+          Kobuki_Rotate_Angle(kobuki->angle);
         }
         break;
 
@@ -287,13 +308,72 @@ void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
           break;
         }
         
-        Kobuki_Drive_Distance(kobuki->distance);
-
         if (kobuki->distance_complete){
           Kobuki_Drive(STOP);
           pathfind_complete = true;   
           pathfind_started = false;   
           pathfind_state = PATHFIND_FIRST; 
+        }
+        else{
+          Kobuki_Drive_Distance(kobuki->distance);
+        }
+        break;
+        */
+      case PATHFIND_REVERSE:
+        if (!reverse_started){
+          Kobuki_Drive_Distance_Setpoint(kobuki->distance, -REVERSE);
+          reverse_started = true;
+        }
+        
+        if (kobuki->distance_complete){
+          Kobuki_Drive(STOP);
+          kobuki->distance_complete = 0;
+          pathfind_state = PATHFIND_REVERSE_ANGLE;
+          reverse_started = false;
+        }
+        else{
+          Kobuki_Drive_Distance(kobuki->distance);
+        }
+        break;
+      case PATHFIND_REVERSE_ANGLE:
+        if (!reverse_started){
+          if (course == A && corb == 1){
+            Kobuki_Rotate_Angle_Setpoint(kobuki->angle, REVERSE_ANGLE);
+          }
+          else if (course == A && corb == 2){
+            Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -REVERSE_ANGLE);
+          }
+          else if (course == B && corb == 1){
+            Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -REVERSE_ANGLE);
+          }
+          else if (course == B && corb == 2){
+            Kobuki_Rotate_Angle_Setpoint(kobuki->angle, REVERSE_ANGLE);
+          }
+          else if (course == A && corb == 3) {
+            if (pathfind_count == 2){
+              Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
+            }
+            Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW);
+          }
+          else if (course == B && corb == 3) {
+            if (pathfind_count == 2){
+              Kobuki_Rotate_Angle_Setpoint(kobuki->angle,CCW);
+            }
+            Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
+          }
+          reverse_started = true;
+          break;
+        }
+      
+        if (kobuki->rotation_complete){
+          Kobuki_Rotate(STOP);
+          kobuki->rotation_complete = 0;
+          pathfind_state = pathfind_state_prev;
+          reverse_started = false;
+          corb = 0;
+        }
+        else{
+          Kobuki_Rotate_Angle(kobuki->angle);
         }
         break;
       case PATHFIND_FAULT:
@@ -440,6 +520,22 @@ void Main_FSM(Kobuki_Typedef* kobuki, US_Typedef* object) {
     state = IDLE;
     return;
   }
+
+  if (state == PATHFIND && (kobuki->cliff || kobuki->bumper)){
+    pathfind_state_prev = pathfind_state;
+    if (kobuki->cliff == 0x01 || kobuki->cliff == 0x04){
+      corb = 1;
+    }
+    else if (kobuki->cliff == 0x02){
+      corb = 3;
+      pathfind_count++;
+    }
+    else{
+      corb = 2;
+    }
+    pathfind_state = PATHFIND_REVERSE;
+  }
+
 
   switch (state) {
     case IDLE:
