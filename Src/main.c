@@ -237,7 +237,7 @@ typedef enum {
   PATHFIND_SECOND,
   PATHFIND_REVERSE,
   PATHFIND_REVERSE_ANGLE,
-  PATHFIND_CENTER
+  PATHFIND_CENTER,
   PATHFIND_FAULT
 } Pathfind_State_Enum;
 
@@ -246,8 +246,8 @@ static Pathfind_State_Enum pathfind_state_prev = PATHFIND_FIRST;
 static bool pathfind_started = false;
 static bool pathfind_complete = false; // tells Main_FSM to go to STORAGE
 static bool reverse_started = false; //Temp variable/ffunctionality 
-static corb = 0; //1 = cliff, 2= bumper, 3 = front cliff
-static pathfind_count = 0;
+static int corb = 0; //1 = cliff, 2= bumper, 3 = front cliff
+static int pathfind_count = 0;
 
 void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
   static int16_t Path[3];
@@ -262,7 +262,7 @@ void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
       case PATHFIND_FIRST:
         Kobuki_Drive(speed);
         if (pathfind_count == 2){
-          Kobuki_drive(STOP);
+          Kobuki_Drive(STOP);
           pathfind_started = false;   
           pathfind_complete = true;
           pathfind_state = PATHFIND_FIRST;
