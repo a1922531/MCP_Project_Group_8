@@ -262,9 +262,11 @@ void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
       case PATHFIND_FIRST:
         Kobuki_Drive(speed);
         if (pathfind_count == 2){
-          pathfind_state = PATHFIND_CENTER
+          Kobuki_drive(STOP);
+          pathfind_started = false;   
+          pathfind_complete = true;
+          pathfind_state = PATHFIND_FIRST;
         }
-      case PATHFIND_CENTER:
         
       /*
       case PATHFIND_FIRST:
