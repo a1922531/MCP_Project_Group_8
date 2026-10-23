@@ -378,7 +378,7 @@ void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
         if (kobuki->rotation_complete){
           Kobuki_Rotate(STOP);
           kobuki->rotation_complete = 0;
-          pathfind_state = pathfind_state_prev;
+          pathfind_state = PATHFIND_FIRST;
           reverse_started = false;
           corb = 0;
         }
