@@ -267,6 +267,7 @@ void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
           pathfind_complete = true;
           pathfind_state = PATHFIND_FIRST;
         }
+        break;
         
       /*
       case PATHFIND_FIRST:
@@ -325,6 +326,7 @@ void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
         if (!reverse_started){
           Kobuki_Drive_Distance_Setpoint(kobuki->distance, -REVERSE);
           reverse_started = true;
+          break;
         }
         
         if (kobuki->distance_complete){
@@ -355,13 +357,19 @@ void sub_FSM_Pathfind(Kobuki_Typedef* kobuki){
             if (pathfind_count == 2){
               Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
             }
-            Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW);
+            else{
+              Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW);
+            }
+
           }
           else if (course == B && corb == 3) {
             if (pathfind_count == 2){
               Kobuki_Rotate_Angle_Setpoint(kobuki->angle,CCW);
             }
-            Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
+            else{
+              Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
+            }
+            
           }
           reverse_started = true;
           break;
@@ -509,6 +517,10 @@ static void Main_FSM_Reset(void) {
   attempts = 0;
   search_state = SEARCH_INIT;
   search_retry = false;
+  reverse_started = false;
+  corb = 0;
+  pathfind_count = 0;
+  pathfind_state_prev = PATHFIND_FIRST;
 }
 
 // Overall FSM (Figure 5)
