@@ -254,6 +254,7 @@ typedef enum {
   PATHFIND_REVERSE,
   PATHFIND_REVERSE_ANGLE,
   PATHFIND_CENTER,
+  PATHFIND_RETURN, // final leg: reverse back to where the leg started
   PATHFIND_FAULT
 } Pathfind_State_Enum;
 
@@ -264,6 +265,7 @@ static bool pathfind_complete = false; // tells Main_FSM to go to STORAGE
 static bool reverse_started = false;   // Temp variable/ffunctionality
 static int corb = 0;                   // 1 = cliff, 2= bumper, 3 = front cliff
 static int pathfind_count = 0;
+static uint16_t return_start_distance = 0; // encoder tick at start of final leg
 
 void sub_FSM_Pathfind(Kobuki_Typedef *kobuki) {
   static int16_t Path[3];
@@ -277,6 +279,20 @@ void sub_FSM_Pathfind(Kobuki_Typedef *kobuki) {
     Path[1] = CW;
     Path[2] = HORIZONTAL_DISTANCE;
   }
+
+  if (pathfind_state == PATHFIND_FIRST && !pathfind_complete &&
+      (kobuki->cliff || kobuki->bumper)) {
+    pathfind_state_prev = pathfind_state;
+    if (kobuki->cliff == 0x01 || kobuki->cliff == 0x04) {
+      corb = 1;
+    } else if (kobuki->cliff == 0x02) {
+      corb = 3;
+    } else {
+      corb = 2;
+    }
+    pathfind_state = PATHFIND_REVERSE;
+  }
+
   switch (pathfind_state) {
   case PATHFIND_FIRST:
     if (pathfind_count == 3) {
@@ -363,10 +379,10 @@ void sub_FSM_Pathfind(Kobuki_Typedef *kobuki) {
       if (corb == 3) {
         pathfind_count++;
         if (pathfind_count == 3) {
-          pathfind_started = false;
-          pathfind_complete = true;
-          pathfind_state = PATHFIND_FIRST;
+          // end of final leg: no rotation, reverse back to the leg start
+          pathfind_state = PATHFIND_RETURN;
           corb = 0;
+          break;
         }
       }
       if (course == A && corb == 1) {
@@ -399,13 +415,25 @@ void sub_FSM_Pathfind(Kobuki_Typedef *kobuki) {
       Kobuki_Rotate(STOP);
       kobuki->rotation_complete = 0;
       if (corb == 3 && pathfind_count == 2) {
-        pathfind_complete = true;
+        // start of final leg: remember where we are to return here later
+        return_start_distance = kobuki->distance;
       }
       pathfind_state = PATHFIND_FIRST;
       reverse_started = false;
       corb = 0;
     } else {
       Kobuki_Rotate_Angle(kobuki->angle);
+    }
+    break;
+  case PATHFIND_RETURN:
+    // signed ticks travelled since the leg start (handles uint16 wrap)
+    if ((int16_t)(kobuki->distance - return_start_distance) <= 0) {
+      Kobuki_Drive(STOP);
+      pathfind_started = false;
+      pathfind_complete = true;
+      pathfind_state = PATHFIND_FIRST;
+    } else {
+      Kobuki_Drive(-speed);
     }
     break;
   case PATHFIND_FAULT:
@@ -459,7 +487,7 @@ void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
     if (kobuki->distance_complete || (object->range_mm < 150)) {
       Kobuki_Drive(STOP);
       storage_step = STORAGE_ROTATE_SET; // ready for next time
-      storage_complete = true;       // tells Main_FSM to go to DEPOSIT
+      storage_complete = true;           // tells Main_FSM to go to DEPOSIT
     } else {
       Kobuki_Drive_Distance(kobuki->distance);
     }
@@ -561,19 +589,6 @@ void Main_FSM(Kobuki_Typedef *kobuki, US_Typedef *object) {
     return;
   }
 
-  if (state == PATHFIND && pathfind_state == PATHFIND_FIRST &&
-      !pathfind_complete && (kobuki->cliff || kobuki->bumper)) {
-    pathfind_state_prev = pathfind_state;
-    if (kobuki->cliff == 0x01 || kobuki->cliff == 0x04) {
-      corb = 1;
-    } else if (kobuki->cliff == 0x02) {
-      corb = 3;
-    } else {
-      corb = 2;
-    }
-    pathfind_state = PATHFIND_REVERSE;
-  }
-
   switch (state) {
   case IDLE:
     if (B0) {
@@ -651,7 +666,7 @@ int main(void) {
 
   US_Typedef object;
 
-   UART_Init();
+  UART_Init();
 
   ADC_Init();
 
