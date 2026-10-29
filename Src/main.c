@@ -427,7 +427,7 @@ void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
     if (object->detected) {
       if (object->range_mm <= 900) {
         if (course == A) {
-          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -132);
+          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -130);
         } else {
           Kobuki_Rotate_Angle_Setpoint(kobuki->angle, 137);
         }
@@ -550,7 +550,7 @@ void sub_FSM_Deposit(Kobuki_Typedef *kobuki, US_Typedef *object) {
   }
   switch (deposit_step) {
   case DEPOSIT_CENTRE: {
-    ultrasonic_detect_range_mm = 550;
+    ultrasonic_detect_range_mm = 540;
     Status_Enum result = sub_FSM_Search(kobuki, object);
     if (result == STATUS_DONE) {
       deposit_step = DEPOSIT_DRIVE;
