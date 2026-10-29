@@ -458,9 +458,9 @@ void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
     if (object->detected) {
       if (object->range_mm <= 900) {
         if (course == A) {
-          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -135);
+          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -132);
         } else {
-          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, 135);
+          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, 137);
         }
         storage_step = STORAGE_ROTATE;
         break;
