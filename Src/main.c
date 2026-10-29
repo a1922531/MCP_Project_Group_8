@@ -244,7 +244,7 @@ void sub_FSM_Orient(Kobuki_Typedef *kobuki, const US_Typedef *object) {
 #define HORIZONTAL_DISTANCE 1150 // mm
 #define VERTICAL_DISTANCE 1350   // mm
 #define REVERSE 50               // mm
-#define REVERSE_ANGLE 3
+#define REVERSE_ANGLE 5
 #define speed 150
 
 typedef enum {
@@ -442,15 +442,38 @@ void sub_FSM_Pathfind(Kobuki_Typedef *kobuki) {
   }
 }
 
+#define STORAGE_DISTANCE 850 // mm, drive from bollard 2 into storage
+
+// Kobuki bumper bits
+#define BUMPER_RIGHT 0x01
+#define BUMPER_CENTRE 0x02
+#define BUMPER_LEFT 0x04
+
+// Same conversion as kobuki.c (encoder ticks -> mm)
+#define STORAGE_MM_PER_TICK (2.0 * 3.14159 * 35.0 * ((132.0 / 6545.0) / 52.0))
+
 typedef enum {
   STORAGE_ROTATE_SET,
   STORAGE_ROTATE,
   STORAGE_DRIVE_SET,
-  STORAGE_DRIVE
+  STORAGE_DRIVE,
+  STORAGE_REVERSE_SET, // side bumper hit: back up
+  STORAGE_REVERSE,
+  STORAGE_AVOID_SET, // turn away from the side that was hit
+  STORAGE_AVOID,
+  STORAGE_RESUME_SET // drive the remaining distance
 } Storage_Step_Enum;
 static Storage_Step_Enum storage_step = STORAGE_ROTATE_SET;
 static Status_Enum storage_status = STATUS_PENDING;
-static bool storage_complete = false; // tells Main_FSM to go to DEPOSIT
+static bool storage_complete = false;       // tells Main_FSM to go to DEPOSIT
+static uint16_t storage_start_distance = 0; // encoder tick at start of drive
+static int storage_bump = 0;                // 1 = left bumper, 2 = right bumper
+
+// Net mm travelled since STORAGE_DRIVE_SET (handles uint16 wrap)
+static int16_t Storage_Travelled(Kobuki_Typedef *kobuki) {
+  return (int16_t)((int16_t)(kobuki->distance - storage_start_distance) *
+                   STORAGE_MM_PER_TICK);
+}
 
 void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
   switch (storage_step) {
@@ -458,9 +481,9 @@ void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
     if (object->detected) {
       if (object->range_mm <= 900) {
         if (course == A) {
-          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -135);
+          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -132);
         } else {
-          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, 135);
+          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, 138);
         }
         storage_step = STORAGE_ROTATE;
         break;
@@ -469,6 +492,7 @@ void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
     storage_status = STATUS_FAIL; // not facing bollard 2 after the search
     led_1 = RED;
     break;
+
   case STORAGE_ROTATE:
     if (kobuki->rotation_complete) {
       Kobuki_Rotate(STOP);
@@ -476,22 +500,87 @@ void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
     } else {
       Kobuki_Rotate_Angle(kobuki->angle);
     }
-
     break;
+
   case STORAGE_DRIVE_SET:
-    Kobuki_Drive_Distance_Setpoint(kobuki->distance, 850);
+    storage_start_distance = kobuki->distance; // start tracking from here
+    Kobuki_Drive_Distance_Setpoint(kobuki->distance, STORAGE_DISTANCE);
     storage_step = STORAGE_DRIVE;
     break;
 
   case STORAGE_DRIVE:
+    // side bumper hit (left or right, not both): back up and avoid
+    if ((kobuki->bumper & BUMPER_LEFT) && !(kobuki->bumper & BUMPER_RIGHT)) {
+      Kobuki_Drive(STOP);
+      storage_bump = 1;
+      storage_step = STORAGE_REVERSE_SET;
+      break;
+    } else if ((kobuki->bumper & BUMPER_RIGHT) &&
+               !(kobuki->bumper & BUMPER_LEFT)) {
+      Kobuki_Drive(STOP);
+      storage_bump = 2;
+      storage_step = STORAGE_REVERSE_SET;
+      break;
+    }
+
     if (kobuki->distance_complete || (object->range_mm < 150)) {
       Kobuki_Drive(STOP);
       storage_step = STORAGE_ROTATE_SET; // ready for next time
-      storage_complete = true;           // tells Main_FSM to go to DEPOSIT
+      storage_bump = 0;
+      storage_complete = true; // tells Main_FSM to go to DEPOSIT
     } else {
       Kobuki_Drive_Distance(kobuki->distance);
     }
     break;
+
+  case STORAGE_REVERSE_SET:
+    Kobuki_Drive_Distance_Setpoint(kobuki->distance, -REVERSE);
+    storage_step = STORAGE_REVERSE;
+    break;
+
+  case STORAGE_REVERSE:
+    if (kobuki->distance_complete) {
+      Kobuki_Drive(STOP);
+      storage_step = STORAGE_AVOID_SET;
+    } else {
+      Kobuki_Drive_Distance(kobuki->distance);
+    }
+    break;
+
+  case STORAGE_AVOID_SET:
+    if (storage_bump == 1) {
+      Kobuki_Rotate_Angle_Setpoint(kobuki->angle,
+                                   -REVERSE_ANGLE); // left hit -> turn CW
+    } else {
+      Kobuki_Rotate_Angle_Setpoint(kobuki->angle,
+                                   REVERSE_ANGLE); // right hit -> turn CCW
+    }
+    storage_step = STORAGE_AVOID;
+    break;
+
+  case STORAGE_AVOID:
+    if (kobuki->rotation_complete) {
+      Kobuki_Rotate(STOP);
+      storage_bump = 0;
+      storage_step = STORAGE_RESUME_SET;
+    } else {
+      Kobuki_Rotate_Angle(kobuki->angle);
+    }
+    break;
+
+  case STORAGE_RESUME_SET: {
+    // drive whatever is left so the total travelled equals STORAGE_DISTANCE
+    int16_t remaining = STORAGE_DISTANCE - Storage_Travelled(kobuki);
+    if (remaining <= 2) {
+      Kobuki_Drive(STOP);
+      storage_step = STORAGE_ROTATE_SET;
+      storage_complete = true;
+    } else {
+      Kobuki_Drive_Distance_Setpoint(kobuki->distance, remaining);
+      storage_step = STORAGE_DRIVE; // bumper checks stay active
+    }
+    break;
+  }
   }
 }
 
@@ -501,7 +590,7 @@ void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
 
 typedef enum {
   DEPOSIT_CENTRE, // Search for the deposit marker and face its centre
-  DEPOSIT_DRIVE   // drive straight at it until close enough
+  DEPOSIT_DRIVE,  // drive straight at it until close enough
 } Deposit_Step_Enum;
 
 static Deposit_Step_Enum deposit_step = DEPOSIT_CENTRE;
@@ -509,6 +598,10 @@ static Status_Enum deposit_status = STATUS_PENDING;
 static bool deposit_complete = false; // tells Main_FSM to go to IDLE
 
 void sub_FSM_Deposit(Kobuki_Typedef *kobuki, US_Typedef *object) {
+  if (kobuki->bumper) {
+    deposit_status = STATUS_FAIL;
+    return;
+  }
   switch (deposit_step) {
   case DEPOSIT_CENTRE: {
     ultrasonic_detect_range_mm = 550;
@@ -532,7 +625,6 @@ void sub_FSM_Deposit(Kobuki_Typedef *kobuki, US_Typedef *object) {
       Kobuki_Drive(MIN_SPEED);
     }
     break;
-
   default:
     break;
   }
