@@ -388,7 +388,7 @@ void sub_FSM_Pathfind(Kobuki_Typedef *kobuki) {
   }
 }
 
-#define STORAGE_DISTANCE 850 // mm, drive from bollard 2 into storage
+#define STORAGE_DISTANCE 880 // mm, drive from bollard 2 into storage
 
 // Kobuki bumper bits
 #define BUMPER_RIGHT 0x01
