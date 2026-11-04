@@ -550,7 +550,7 @@ void sub_FSM_Deposit(Kobuki_Typedef *kobuki, US_Typedef *object) {
   }
   switch (deposit_step) {
   case DEPOSIT_CENTRE: {
-    ultrasonic_detect_range_mm = 540;
+    ultrasonic_detect_range_mm = 500;
     Status_Enum result = sub_FSM_Search(kobuki, object);
     if (result == STATUS_DONE) {
       deposit_step = DEPOSIT_DRIVE;
