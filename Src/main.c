@@ -241,67 +241,80 @@ void sub_Orient(Kobuki_Typedef *kobuki, const US_Typedef *object) {
 }
 
 // Drive Distances
-#define REVERSE 50 //mm. Reverse amount when a sensor is triggered
-#define REVERSE_ANGLE 5 //correcting its direction to try move straight
-#define speed 150 //Constant speed for pathfind
+#define REVERSE 50      // mm. Reverse amount when a sensor is triggered
+#define REVERSE_ANGLE 5 // correcting its direction to try move straight
+#define speed 150       // Constant speed for pathfind
 
 typedef enum {
-  PATHFIND_FIRST, //Normal dirving state (just go forward)
-  PATHFIND_REVERSE, //Sensor triggered and just backup
+  PATHFIND_FIRST,         // Normal dirving state (just go forward)
+  PATHFIND_REVERSE,       // Sensor triggered and just backup
   PATHFIND_REVERSE_ANGLE, //
-  PATHFIND_RETURN, // final leg: reverse back to where the leg started
-  PATHFIND_FAULT //Edge case to go back to PATHFIND_FIRST
+  PATHFIND_RETURN,        // final leg: reverse back to where the leg started
+  PATHFIND_FAULT          // Edge case to go back to PATHFIND_FIRST
 } Pathfind_State_Enum;
 
 static Pathfind_State_Enum pathfind_state = PATHFIND_FIRST;
 static bool pathfind_complete = false; // tells Main_FSM to go to STORAGE
 static bool reverse_started = false;
-static int sensor = 0; // 1 = cliff, 2= bumper, 3 = front cliff
-static int pathfind_count = 0; //counting how many times a right turn is need (front cliff), to know where on the map it is
+static int sensor = 0;         // 1 = cliff, 2= bumper, 3 = front cliff
+static int pathfind_count = 0; // counting how many times a right turn is need
+                               // (front cliff), to know where on the map it is
 static uint16_t return_start_distance = 0; // encoder tick at start of final leg
 
 void sub_FSM_Pathfind(Kobuki_Typedef *kobuki) {
-  if (pathfind_state == PATHFIND_FIRST && !pathfind_complete && (kobuki->cliff || kobuki->bumper)) { //Checking if the kobuki is within its normal pathfind state and a sensor has been trigger (cliff or bumper)
-    if (kobuki->cliff == 0x01 || kobuki->cliff == 0x04) { //left or right cliff sensor
-      sensor = 1; 
-    } else if (kobuki->cliff == 0x02) { //front cliff sensor
+  if (pathfind_state == PATHFIND_FIRST && !pathfind_complete &&
+      (kobuki->cliff ||
+       kobuki
+           ->bumper)) { // Checking if the kobuki is within its normal pathfind
+                        // state and a sensor has been trigger (cliff or bumper)
+    if (kobuki->cliff == 0x01 ||
+        kobuki->cliff == 0x04) { // left or right cliff sensor
+      sensor = 1;
+    } else if (kobuki->cliff == 0x02) { // front cliff sensor
       sensor = 3;
     } else {
       sensor = 2; // //any bumper sensor
     }
-    pathfind_state = PATHFIND_REVERSE; //Kobuki must reverse cause a cliff or bumper sensor was triggered
+    pathfind_state = PATHFIND_REVERSE; // Kobuki must reverse cause a cliff or
+                                       // bumper sensor was triggered
   }
 
   switch (pathfind_state) {
   case PATHFIND_FIRST:
-    if (pathfind_count == 3) { //Safety check incase PATHFIND_FAULT didnt run. The kobuki has hit 3 front cliff sensors, meaning it is in the corner of section 3
+    if (pathfind_count ==
+        3) { // Safety check incase PATHFIND_FAULT didnt run. The kobuki has hit
+             // 3 front cliff sensors, meaning it is in the corner of section 3
       Kobuki_Drive(STOP);
-      pathfind_complete = true; //Pathfind state is now complete
-      pathfind_state = PATHFIND_FIRST; //Reset the state
+      pathfind_complete = true;        // Pathfind state is now complete
+      pathfind_state = PATHFIND_FIRST; // Reset the state
     } else {
-      Kobuki_Drive(speed); //Drive if pathfind isnt complete
+      Kobuki_Drive(speed); // Drive if pathfind isnt complete
     }
     break;
   case PATHFIND_REVERSE:
-    if (!reverse_started) { //First time entering reverse state (because a sensor was triggered)
-      Kobuki_Drive_Distance_Setpoint(kobuki->distance, -REVERSE); //Reverse 50mm
-      reverse_started = true; //Skip this initialisation after first cycle
+    if (!reverse_started) { // First time entering reverse state (because a
+                            // sensor was triggered)
+      Kobuki_Drive_Distance_Setpoint(kobuki->distance, -REVERSE); // Reverse
+                                                                  // 50mm
+      reverse_started = true; // Skip this initialisation after first cycle
       break;
     }
 
-    if (kobuki->distance_complete) { //Kobuki reveresed 50mm and completion flag is set
+    if (kobuki->distance_complete) { // Kobuki reveresed 50mm and completion
+                                     // flag is set
       Kobuki_Drive(STOP);
-      kobuki->distance_complete = 0; //Reset flag
-      pathfind_state = PATHFIND_REVERSE_ANGLE; //Correct its angle
-      reverse_started = false; //Reset flag
+      kobuki->distance_complete = 0;           // Reset flag
+      pathfind_state = PATHFIND_REVERSE_ANGLE; // Correct its angle
+      reverse_started = false;                 // Reset flag
     } else {
-      Kobuki_Drive_Distance(kobuki->distance); //If reverse hasnt been complete, keep reversing
+      Kobuki_Drive_Distance(
+          kobuki->distance); // If reverse hasnt been complete, keep reversing
     }
     break;
   case PATHFIND_REVERSE_ANGLE:
-    if (!reverse_started) { //Initialising the reverse angle only once
-      if (sensor == 3) { //front cliff sensor
-        pathfind_count++; 
+    if (!reverse_started) { // Initialising the reverse angle only once
+      if (sensor == 3) {    // front cliff sensor
+        pathfind_count++;
         if (pathfind_count == 3) {
           // end of final leg: no rotation, reverse back to the leg start
           pathfind_state = PATHFIND_RETURN;
@@ -309,54 +322,70 @@ void sub_FSM_Pathfind(Kobuki_Typedef *kobuki) {
           break;
         }
       }
-      if ((course == A && sensor == 1) || (course == B && sensor == 2)) { //Rotate anti-clockwise if cliff sensor (right) is triggered in course A or bumper (right) is triggered in course B
+      if ((course == A && sensor == 1) ||
+          (course == B &&
+           sensor == 2)) { // Rotate anti-clockwise if cliff sensor (right) is
+                           // triggered in course A or bumper (right) is
+                           // triggered in course B
         Kobuki_Rotate_Angle_Setpoint(kobuki->angle, REVERSE_ANGLE);
-      } else if ((course == A && sensor == 2) || (course == B && sensor == 1)) { //Rotate clockwise if bumper (left) is triggered in course A or cliff sensor (left) is triggered in course B
+      } else if ((course == A && sensor == 2) ||
+                 (course == B &&
+                  sensor == 1)) { // Rotate clockwise if bumper (left) is
+                                  // triggered in course A or cliff sensor
+                                  // (left) is triggered in course B
         Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -REVERSE_ANGLE);
-      } else if (course == A && sensor == 3) { //Course A: front cliff sensor
-        if (pathfind_count == 2) { 
-          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW); //Within section 3 to face the adjacent cliff
+      } else if (course == A && sensor == 3) { // Course A: front cliff sensor
+        if (pathfind_count == 2) {
+          Kobuki_Rotate_Angle_Setpoint(
+              kobuki->angle, CW); // Within section 3 to face the adjacent cliff
         } else {
-          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW); //Section 4 to face section 3
+          Kobuki_Rotate_Angle_Setpoint(kobuki->angle,
+                                       CCW); // Section 4 to face section 3
         }
 
-      } else if (course == B && sensor == 3) { //Course B: front sensor
+      } else if (course == B && sensor == 3) { // Course B: front sensor
         if (pathfind_count == 2) {
-          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW); //Within section 3 to face the adjacent cliff
+          Kobuki_Rotate_Angle_Setpoint(
+              kobuki->angle,
+              CCW); // Within section 3 to face the adjacent cliff
         } else {
-          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW); //Section 2 to face section 3
+          Kobuki_Rotate_Angle_Setpoint(kobuki->angle,
+                                       CW); // Section 2 to face section 3
         }
       }
-      reverse_started = true; //flag to have rotate angle initialisation once
+      reverse_started = true; // flag to have rotate angle initialisation once
       break;
     }
 
-    if (kobuki->rotation_complete) { //angle correction completed
+    if (kobuki->rotation_complete) { // angle correction completed
       Kobuki_Rotate(STOP);
-      kobuki->rotation_complete = 0; //reset flag
+      kobuki->rotation_complete = 0; // reset flag
       if (sensor == 3 && pathfind_count == 2) {
         // start of final leg: remember where we are to return here later
         return_start_distance = kobuki->distance;
       }
-      pathfind_state = PATHFIND_FIRST; //Contiune driving straight
-      reverse_started = false; //clear flag
+      pathfind_state = PATHFIND_FIRST; // Contiune driving straight
+      reverse_started = false;         // clear flag
       sensor = 0;
     } else {
-      Kobuki_Rotate_Angle(kobuki->angle); //rotation not complete: continue rotating 
+      Kobuki_Rotate_Angle(
+          kobuki->angle); // rotation not complete: continue rotating
     }
     break;
   case PATHFIND_RETURN:
     // signed ticks travelled since the leg start (handles uint16 wrap)
-    if ((int16_t)(kobuki->distance - return_start_distance) <= 0) { //reversing to the set position in section 3 when the first cliff sensor was activated
+    if ((int16_t)(kobuki->distance - return_start_distance) <=
+        0) { // reversing to the set position in section 3 when the first cliff
+             // sensor was activated
       Kobuki_Drive(STOP);
-      pathfind_complete = true; //Pathfind state is now complete
-      pathfind_state = PATHFIND_FIRST; //Reset the state
+      pathfind_complete = true;        // Pathfind state is now complete
+      pathfind_state = PATHFIND_FIRST; // Reset the state
     } else {
-      Kobuki_Drive(-speed); //Keep reversing
+      Kobuki_Drive(-speed); // Keep reversing
     }
     break;
-  case PATHFIND_FAULT: //Edge case if logic somehow justs out of place
-    pathfind_state = PATHFIND_FIRST; //Returns back into the FSM
+  case PATHFIND_FAULT: // Edge case if logic somehow justs out of place
+    pathfind_state = PATHFIND_FIRST; // Returns back into the FSM
     break;
   }
 }
@@ -397,19 +426,12 @@ static int16_t Storage_Travelled(Kobuki_Typedef *kobuki) {
 void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
   switch (storage_step) {
   case STORAGE_ROTATE_SET:
-    if (object->detected) {
-      if (object->range_mm <= 900) {
-        if (course == A) {
-          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -130);
-        } else {
-          Kobuki_Rotate_Angle_Setpoint(kobuki->angle, 137);
-        }
-        storage_step = STORAGE_ROTATE;
-        break;
-      }
+    if (course == A) {
+      Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -130);
+    } else {
+      Kobuki_Rotate_Angle_Setpoint(kobuki->angle, 137);
     }
-    storage_status = STATUS_FAIL; // not facing bollard 2 after the search
-    led_1 = RED;
+    storage_step = STORAGE_ROTATE;
     break;
 
   case STORAGE_ROTATE:
