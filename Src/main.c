@@ -649,7 +649,6 @@ void Main_FSM(Kobuki_Typedef *kobuki, US_Typedef *object) {
   case PATHFIND:
     if (pathfind_complete) {
       pathfind_complete = false;
-      Search_Start();
       state = STORAGE;
     } else {
       sub_FSM_Pathfind(kobuki);
@@ -664,7 +663,6 @@ void Main_FSM(Kobuki_Typedef *kobuki, US_Typedef *object) {
     }
     if (storage_complete) {
       storage_complete = false;
-      Search_Start();
       state = DEPOSIT;
     } else {
       sub_FSM_Storage(kobuki, object);
