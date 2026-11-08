@@ -249,46 +249,29 @@ void sub_FSM_Orient(Kobuki_Typedef *kobuki, const US_Typedef *object) {
 
 typedef enum {
   PATHFIND_FIRST,
-  PATHFIND_ROTATE,
-  PATHFIND_SECOND,
   PATHFIND_REVERSE,
   PATHFIND_REVERSE_ANGLE,
-  PATHFIND_CENTER,
   PATHFIND_RETURN, // final leg: reverse back to where the leg started
   PATHFIND_FAULT
 } Pathfind_State_Enum;
 
 static Pathfind_State_Enum pathfind_state = PATHFIND_FIRST;
-static Pathfind_State_Enum pathfind_state_prev = PATHFIND_FIRST;
 static bool pathfind_started = false;
 static bool pathfind_complete = false; // tells Main_FSM to go to STORAGE
 static bool reverse_started = false;   // Temp variable/ffunctionality
-static int corb = 0;                   // 1 = cliff, 2= bumper, 3 = front cliff
+static int sensor = 0;                   // 1 = cliff, 2= bumper, 3 = front cliff
 static int pathfind_count = 0;
 static uint16_t return_start_distance = 0; // encoder tick at start of final leg
 
 void sub_FSM_Pathfind(Kobuki_Typedef *kobuki) {
-  static int16_t Path[3];
-  // Could add path_initialised to stop Path[] being initialised every time
-  if (course == A) {
-    Path[0] = HORIZONTAL_DISTANCE;
-    Path[1] = CCW;
-    Path[2] = VERTICAL_DISTANCE;
-  } else {
-    Path[0] = VERTICAL_DISTANCE;
-    Path[1] = CW;
-    Path[2] = HORIZONTAL_DISTANCE;
-  }
-
   if (pathfind_state == PATHFIND_FIRST && !pathfind_complete &&
       (kobuki->cliff || kobuki->bumper)) {
-    pathfind_state_prev = pathfind_state;
     if (kobuki->cliff == 0x01 || kobuki->cliff == 0x04) {
-      corb = 1;
+      sensor = 1;
     } else if (kobuki->cliff == 0x02) {
-      corb = 3;
+      sensor = 3;
     } else {
-      corb = 2;
+      sensor = 2;
     }
     pathfind_state = PATHFIND_REVERSE;
   }
@@ -322,31 +305,27 @@ void sub_FSM_Pathfind(Kobuki_Typedef *kobuki) {
     break;
   case PATHFIND_REVERSE_ANGLE:
     if (!reverse_started) {
-      if (corb == 3) {
+      if (sensor == 3) {
         pathfind_count++;
         if (pathfind_count == 3) {
           // end of final leg: no rotation, reverse back to the leg start
           pathfind_state = PATHFIND_RETURN;
-          corb = 0;
+          sensor = 0;
           break;
         }
       }
-      if (course == A && corb == 1) {
+      if ((course == A && sensor == 1) || (course == B && sensor == 2)) {
         Kobuki_Rotate_Angle_Setpoint(kobuki->angle, REVERSE_ANGLE);
-      } else if (course == A && corb == 2) {
+      } else if ((course == A && sensor == 2) || (course == B && sensor == 1)) {
         Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -REVERSE_ANGLE);
-      } else if (course == B && corb == 1) {
-        Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -REVERSE_ANGLE);
-      } else if (course == B && corb == 2) {
-        Kobuki_Rotate_Angle_Setpoint(kobuki->angle, REVERSE_ANGLE);
-      } else if (course == A && corb == 3) {
+      } else if (course == A && sensor == 3) {
         if (pathfind_count == 2) {
           Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CW);
         } else {
           Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW);
         }
 
-      } else if (course == B && corb == 3) {
+      } else if (course == B && sensor == 3) {
         if (pathfind_count == 2) {
           Kobuki_Rotate_Angle_Setpoint(kobuki->angle, CCW);
         } else {
@@ -360,13 +339,13 @@ void sub_FSM_Pathfind(Kobuki_Typedef *kobuki) {
     if (kobuki->rotation_complete) {
       Kobuki_Rotate(STOP);
       kobuki->rotation_complete = 0;
-      if (corb == 3 && pathfind_count == 2) {
+      if (sensor == 3 && pathfind_count == 2) {
         // start of final leg: remember where we are to return here later
         return_start_distance = kobuki->distance;
       }
       pathfind_state = PATHFIND_FIRST;
       reverse_started = false;
-      corb = 0;
+      sensor = 0;
     } else {
       Kobuki_Rotate_Angle(kobuki->angle);
     }
@@ -609,9 +588,8 @@ static void Main_FSM_Reset(void) {
   search_state = SEARCH_INIT;
   search_retry = false;
   reverse_started = false;
-  corb = 0;
+  sensor = 0;
   pathfind_count = 0;
-  pathfind_state_prev = PATHFIND_FIRST;
   ultrasonic_detect_range_mm = 900;
 }
 
