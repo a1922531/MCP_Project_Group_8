@@ -206,7 +206,7 @@ Status_Enum sub_FSM_Search(const Kobuki_Typedef *kobuki,
 static Status_Enum orient_success = STATUS_PENDING;
 static bool orient_started = false;
 
-void sub_FSM_Orient(Kobuki_Typedef *kobuki, const US_Typedef *object) {
+void sub_Orient(Kobuki_Typedef *kobuki, const US_Typedef *object) {
   if (!orient_started) {
     // uint16_t range = object->range_mm;
     if (object->range_mm <= 600) {
@@ -617,7 +617,7 @@ void Main_FSM(Kobuki_Typedef *kobuki, US_Typedef *object) {
 
   case ORIENT:
     if (orient_success == STATUS_PENDING) {
-      sub_FSM_Orient(kobuki, object);
+      sub_Orient(kobuki, object);
     } else {
       state = (orient_success == STATUS_DONE) ? PATHFIND : SEARCH;
       orient_success = STATUS_PENDING;
