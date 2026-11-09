@@ -1,3 +1,13 @@
+/*---------------------------
+
+List of Contributors:
+
+ANDREW BUXTON	A1887577
+LUKE HUMPHRIS	A1922531
+CHRISTOPHER DUTCH	A1926149
+
+---------------------------*/
+
 #include <stdint.h>
 #define STM32G474xx
 #include "stm32g4xx.h"
