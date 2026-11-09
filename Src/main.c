@@ -474,7 +474,7 @@ void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
       break;
     }
 
-    if (kobuki->distance_complete || (object->range_mm < 150)) {
+    if (kobuki->distance_complete || (object->range_mm < 150 || kobuki->bumper & BUMPER_CENTRE)) {
       Kobuki_Drive(STOP);
       storage_step = STORAGE_ROTATE_SET; // ready for next time
       storage_bump = 0;
