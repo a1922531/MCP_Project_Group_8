@@ -638,7 +638,7 @@ void Main_FSM(Kobuki_Typedef *kobuki, US_Typedef *object) {
     break;
 
   case ORIENT:
-    if (orient_success == STATUS_PENDING) {
+    if (orient_success == STATUS_ cdPENDING) {
       sub_Orient(kobuki, object);
     } else {
       state = (orient_success == STATUS_DONE) ? PATHFIND : SEARCH;
@@ -663,6 +663,7 @@ void Main_FSM(Kobuki_Typedef *kobuki, US_Typedef *object) {
     }
     if (storage_complete) {
       storage_complete = false;
+      Search_Start();
       state = DEPOSIT;
     } else {
       sub_FSM_Storage(kobuki, object);
