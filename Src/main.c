@@ -426,7 +426,7 @@ static int16_t Storage_Travelled(Kobuki_Typedef *kobuki) {
 void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
   switch (storage_step) {
   case STORAGE_ROTATE_SET:
-    if (course == A) {
+    if (course == A) { // -130 for course A, 137 for course B, this was determined after testing, and is due to the layout not being square
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, -130);
     } else {
       Kobuki_Rotate_Angle_Setpoint(kobuki->angle, 137);
@@ -480,7 +480,7 @@ void sub_FSM_Storage(Kobuki_Typedef *kobuki, US_Typedef *object) {
     break;
 
   case STORAGE_REVERSE:
-    if (kobuki->distance_complete) {
+    if (kobuki->distance_complete) { // reverses until it reaches it distance
       Kobuki_Drive(STOP);
       storage_step = STORAGE_AVOID_SET;
     } else {
@@ -545,11 +545,11 @@ void sub_FSM_Deposit(Kobuki_Typedef *kobuki, US_Typedef *object) {
   }
   switch (deposit_step) {
   case DEPOSIT_CENTRE: {
-    ultrasonic_detect_range_mm = 500;
-    Status_Enum result = sub_FSM_Search(kobuki, object);
-    if (result == STATUS_DONE) {
+    ultrasonic_detect_range_mm = 500; // reduces the range to avoid picking up rouge bollards
+    Status_Enum result = sub_FSM_Search(kobuki, object); // returns result of the search
+    if (result == STATUS_DONE) { // when search finishes move internal state on
       deposit_step = DEPOSIT_DRIVE;
-    } else if (result == STATUS_FAIL) {
+    } else if (result == STATUS_FAIL) { // fail state for searching fail
       Kobuki_Rotate(STOP);
       deposit_status = STATUS_FAIL;
       led_1 = RED;
@@ -608,107 +608,105 @@ static void Main_FSM_Reset(void) {
   ultrasonic_detect_range_mm = 900;
 }
 
-// Overall FSM (Figure 5)
+// Top-level FSM: each active state runs its sub-FSM and moves on when it reports a result
 void Main_FSM(Kobuki_Typedef *kobuki, US_Typedef *object) {
-  bool B0 = kobuki->button & BUTTON_0_START;
-  bool B1 = kobuki->button & BUTTON_1_STOP;
 
-  // wheeldrop|B1: every active state returns to IDLE
-  if (state != IDLE && (kobuki->wheeldrop || B1)) {
-    Main_FSM_Reset();
-    state = IDLE;
-    return;
-  }
+    bool B0 = kobuki->button & BUTTON_0_START;
+    bool B1 = kobuki->button & BUTTON_1_STOP;
 
-  switch (state) {
-  case IDLE:
-    if (B0) {
-      course = UNKNOWN;
-      Search_Start();
-      state = SEARCH;
-    } else {
-      Kobuki_Drive(STOP); // !B0/stop
+    // Safety override, checked before the switch so it has priority over every state
+    if (state != IDLE && (kobuki->wheeldrop || B1)) {
+        Main_FSM_Reset(); // Resets the kobuki for next run
+        state = IDLE;
+        return;
     }
-    break;
 
-  case SEARCH:
-    if (sub_FSM_Search(kobuki, object) == STATUS_DONE) {
-      state = ORIENT;
-    }
-    break;
+    switch (state) {
+    case IDLE:
+        if (B0) {
+            course = UNKNOWN;
+            Search_Start();
+            state = SEARCH;
+        } else {
+            Kobuki_Drive(STOP);
+        }
+        break;
 
-  case ORIENT:
-    if (orient_success == STATUS_ cdPENDING) {
-      sub_Orient(kobuki, object);
-    } else {
-      state = (orient_success == STATUS_DONE) ? PATHFIND : SEARCH;
-      orient_success = STATUS_PENDING;
-    }
-    break;
+    case SEARCH:
+        // On STATUS_FAIL the robot stays stopped here until B1
+        if (sub_FSM_Search(kobuki, object) == STATUS_DONE) {
+            state = ORIENT;
+        }
+        break;
 
-  case PATHFIND:
-    if (pathfind_complete) {
-      pathfind_complete = false;
-      state = STORAGE;
-    } else {
-      sub_FSM_Pathfind(kobuki);
-    }
-    break;
+    case ORIENT:
+        // FAIL (bollard out of range) returns to SEARCH
+        if (orient_success == STATUS_PENDING) {
+            sub_Orient(kobuki, object);
+        } else {
+            state = (orient_success == STATUS_DONE) ? PATHFIND : SEARCH;
+            orient_success = STATUS_PENDING;
+        }
+        break;
 
-  case STORAGE:
-    if (storage_status == STATUS_FAIL) {
-      Main_FSM_Reset();
-      state = IDLE;
-      break;
-    }
-    if (storage_complete) {
-      storage_complete = false;
-      Search_Start();
-      state = DEPOSIT;
-    } else {
-      sub_FSM_Storage(kobuki, object);
-    }
-    break;
+    case PATHFIND:
+        if (pathfind_complete) {
+            pathfind_complete = false;
+            state = STORAGE;
+        } else {
+            sub_FSM_Pathfind(kobuki);
+        }
+        break;
 
-  case DEPOSIT:
-    if (deposit_status == STATUS_FAIL) {
-      Main_FSM_Reset();
-      state = IDLE;
-      break;
-    }
-    if (deposit_complete) {
-      Main_FSM_Reset();
-      state = IDLE;
-    } else {
-      sub_FSM_Deposit(kobuki, object);
-    }
-    break;
+    case STORAGE:
+        if (storage_status == STATUS_FAIL) {
+            Main_FSM_Reset();
+            state = IDLE;
+            break;
+        }
+        if (storage_complete) {
+            storage_complete = false;
+            Search_Start();     // DEPOSIT reuses the Search sub-FSM
+            state = DEPOSIT;
+        } else {
+            sub_FSM_Storage(kobuki, object);
+        }
+        break;
 
-  default:
-    Main_FSM_Reset();
-    state = IDLE;
-    break;
-  }
+    case DEPOSIT:
+        if (deposit_status == STATUS_FAIL) {
+            Main_FSM_Reset();
+            state = IDLE;
+            break;
+        }
+        if (deposit_complete) {
+            Main_FSM_Reset();   // also restores the 900 mm detection range
+            state = IDLE;
+        } else {
+            sub_FSM_Deposit(kobuki, object);
+        }
+        break;
+
+    default:    // invalid state, fail safe
+        Main_FSM_Reset();
+        state = IDLE;
+        break;
+    }
 }
 
 int main(void) {
-  Kobuki_Typedef kobuki;
+    Kobuki_Typedef kobuki;
+    US_Typedef object;
 
-  US_Typedef object;
+    UART_Init();
+    ADC_Init();
+    Ultrasonic_Init();
 
-  UART_Init();
-
-  ADC_Init();
-
-  Ultrasonic_Init();
-
-  while (1) {
-    Kobuki_Read(&kobuki);
-
-    Ultrasonic_Detect(&object);
-
-    Kobuki_Update_LEDs(led_1, led_2);
-
-    Main_FSM(&kobuki, &object);
-  }
+    // Polling loop: Kobuki sensors only arrive over UART, so they are read every pass
+    while (1) {
+        Kobuki_Read(&kobuki);
+        Ultrasonic_Detect(&object); 
+        Kobuki_Update_LEDs(led_1, led_2); // updates the LEDs for the kobuki
+        Main_FSM(&kobuki, &object); // executes the current state of the program
+    }
 }
