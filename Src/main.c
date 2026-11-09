@@ -1,3 +1,13 @@
+/*---------------------------
+
+List of Contributors:
+
+ANDREW BUXTON	A1887577
+LUKE HUMPHRIS	A1922531
+CHRISTOPHER DUTCH	A1926149
+
+---------------------------*/
+
 // #include "Ultrasonic/ultrasonic.h"
 #include <stdbool.h>
 #include <stdint.h>
