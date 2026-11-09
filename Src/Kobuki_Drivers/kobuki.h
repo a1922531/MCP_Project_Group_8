@@ -1,3 +1,13 @@
+/*---------------------------
+
+List of Contributors:
+
+ANDREW BUXTON	A1887577
+LUKE HUMPHRIS	A1922531
+CHRISTOPHER DUTCH	A1926149
+
+---------------------------*/
+
 #ifndef KOBUKI_H
 #define KOBUKI_H
 #include <stdint.h>
