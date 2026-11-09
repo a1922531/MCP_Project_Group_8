@@ -59,9 +59,13 @@ static int32_t wrap_angle(int32_t angle) {
   return angle;
 }
 
-// Centidegrees -> whole degrees, rounded
+// Centidegrees -> whole degrees, rounded to nearest (halves round away from zero)
 static int16_t Cdeg_To_Deg(int32_t cdeg) {
-  return (int16_t)((cdeg >= 0) ? ((cdeg + 50) / 100) : ((cdeg - 50) / 100));
+  if (cdeg >= 0) {
+    return (int16_t)((cdeg + 50) / 100); // positive: add half a degree, then truncate
+  } else {
+    return (int16_t)((cdeg - 50) / 100); // negative: subtract half a degree, then truncate
+  }
 }
 
 // Search Sub FSM State
